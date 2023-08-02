@@ -5,7 +5,6 @@ const { Session } = require("../models/Session");
 const jwt = require("jsonwebtoken");
 dotenv.config();
 
-
 // Function to create a new user
 exports.createUser = async (req, res) => {
   try {
@@ -46,13 +45,16 @@ exports.createUser = async (req, res) => {
 // Function to login
 exports.loginUser = async (req, res) => {
   try {
-    const { username, password,email } = req.body;
- // Check if the user exists
+    const { username, password, email } = req.body;
+    // Check if the user exists
     const user = await User.findOne({ $or: [{ username }, { email }] });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    const decryptedPassword = CryptoJS.AES.decrypt(user.password, process.env.ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
+    const decryptedPassword = CryptoJS.AES.decrypt(
+      user.password,
+      process.env.ENCRYPTION_KEY
+    ).toString(CryptoJS.enc.Utf8);
     if (!password == decryptedPassword) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -83,7 +85,6 @@ exports.loginUser = async (req, res) => {
 
     res.status(200).json({ message: "Logged in successfully" });
   } catch (error) {
-   
     res.status(500).json({ message: "Failed to log in" });
   }
 };
@@ -104,8 +105,21 @@ exports.getUsers = async (req, res) => {
       res.status(200).json({ users });
     }
   } catch (error) {
-   
     res.status(500).json({ message: "Failed to retrieve users" });
+  }
+};
+// Function to get users data by session cookie
+exports.getUserDataByCookie = async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user });
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to retrieve user data" });
   }
 };
 
@@ -138,6 +152,25 @@ exports.updateUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error updating the user" });
+  }
+};
+// Function to logout user
+exports.logoutUser = async (req, res) => {
+  try {
+    // Get the session token from the request cookies
+    const sessionToken = req.cookies.SESSION;
+    // Update the session record in the database to revoke the session
+    await Session.findOneAndUpdate(
+      { session: sessionToken },
+      { revoked: true }
+    );
+
+    // Clear the session token cookie
+    res.clearCookie("SESSION");
+
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to logout" });
   }
 };
 
