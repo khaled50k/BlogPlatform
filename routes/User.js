@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { verifyTokenAndAuthorization, verifyToken } = require("../middlewares/Auth");
 
 // Route to register
 router.post('/users', userController.createUser);
@@ -19,10 +20,10 @@ router.put('/users/:id', userController.updateUser);
 // Route to delete a user
 router.delete('/users/:id', userController.deleteUser);
 // Route to add a follower to a user
-router.post('/users/:id/followers', userController.addFollower);
+router.post('/users/:id/followers',verifyToken, userController.addFollower);
 
 // Route to remove a follower from a user
-router.delete('/users/:id/followers', userController.deleteFollower);
+router.delete('/users/:id/followers', verifyToken,userController.deleteFollower);
 // Route to add a follower to a user
 router.post('/users/:id/followings', userController.addFollowing);
 

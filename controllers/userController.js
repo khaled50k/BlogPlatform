@@ -189,8 +189,8 @@ exports.deleteUser = async (req, res) => {
 // Function to add a follower to a user
 exports.addFollower = async (req, res) => {
   try {
-    const { followerId } = req.body;
-    const userId = req.params.id;
+    const { userId } = req.user;
+    const followerId = req.params.id;
 
     // Check if both the user and the follower exist
     const user = await User.findById(userId);
@@ -203,9 +203,9 @@ exports.addFollower = async (req, res) => {
       return res.status(400).json({ message: "Cannot follow yourself" });
     }
     // Check if the follower is not already in the user's followers array
-    if (!user.followers.includes(followerId)) {
-      user.followers.push(followerId);
-      await user.save();
+    if (!follower.followers.includes(userId)) {
+      follower.followers.push(userId);
+      await follower.save();
       res.status(200).json({ message: "Follower added successfully" });
     } else {
       res.status(400).json({ message: "Follower already exists" });
@@ -247,8 +247,8 @@ exports.addFollowing = async (req, res) => {
 // Function to delete a follower from a user
 exports.deleteFollower = async (req, res) => {
   try {
-    const { followerId } = req.body;
-    const userId = req.params.id;
+    const { userId } = req.user;
+    const followerId = req.params.id;
 
     // Check if both the user and the follower exist
     const user = await User.findById(userId);
@@ -258,13 +258,14 @@ exports.deleteFollower = async (req, res) => {
     }
 
     // Remove the follower from the user's followers array
-    const followerIndex = user.followers.indexOf(followerId);
+    const followerIndex = follower.followers.indexOf(userId);
     if (followerIndex !== -1) {
-      user.followers.splice(followerIndex, 1);
-      await user.save();
+      follower.followers.splice(followerIndex, 1);
+      await follower.save();
+      res.status(200).json({ message: "Follower removed successfully" });
     }
 
-    res.status(200).json({ message: "Follower removed successfully" });
+    res.status(200).json({ message: "Follower already removed" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error removing follower" });
