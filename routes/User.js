@@ -26,7 +26,7 @@ router.delete('/users/:id/followers', userController.deleteFollower);
 // Route to add a follower to a user
 router.post('/users/:id/followings', userController.addFollowing);
 
-// Route to remove a follower from a user
+// Route to remove a following from a user
 router.delete('/users/:id/followings', userController.deleteFollowing);
 
 // Route to get all followers for a user

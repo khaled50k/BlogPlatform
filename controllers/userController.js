@@ -218,7 +218,7 @@ exports.addFollower = async (req, res) => {
 // Function to add a following to a user
 exports.addFollowing = async (req, res) => {
   try {
-    const { followingId } = req.user;
+    const { followingId } = req.body;
     const userId = req.params.id;
     // Check if both the user and the follower exist
     const user = await User.findById(userId);
