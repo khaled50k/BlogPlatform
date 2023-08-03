@@ -3,8 +3,11 @@ const Like = require("../models/Like");
 const Comment = require("../models/Comment");
 const dotenv = require("dotenv");
 const { getIO } = require("../sockets/socket");
+const Socket = require("../models/Socket");
 dotenv.config();
 const io = getIO();
+
+
 // Controller function to create a new post
 exports.createPost = async (req, res) => {
   try {
@@ -172,10 +175,11 @@ exports.likePost = async (req, res) => {
         type: "newLike",
         like,
       };
-      if (req.sockets[post.author]) {
-        req.sockets[post.author].emit("notification", notification);
+      const postAuthorSocketId = await getSocketIdByUserId(post.author);
+      console.log(postAuthorSocketId);
+      if (postAuthorSocketId) {
+        req.io.to(postAuthorSocketId).emit("notification", notification);
       }
-
       res.status(200).json({ message: "Post liked successfully" });
     }
   } catch (error) {
@@ -214,8 +218,10 @@ exports.addComment = async (req, res) => {
       type: "newComment",
       comment,
     };
-    if (req.sockets[post.author]) {
-      req.sockets[post.author].emit("notification", notification);
+    const postAuthorSocketId = await getSocketIdByUserId(post.author);
+    console.log(postAuthorSocketId);
+    if (postAuthorSocketId) {
+      req.io.to(postAuthorSocketId).emit("notification", notification);
     }
 
     res.status(200).json({ message: "Comment added successfully" });
@@ -224,6 +230,18 @@ exports.addComment = async (req, res) => {
     res.status(500).json({ message: "Failed to add the comment" });
   }
 };
+
+const getSocketIdByUserId = async (userId) => {
+  try {
+    const socketInfo = await Socket.findOne({ userId });
+    return socketInfo ? socketInfo.socketId : null;
+  } catch (error) {
+    console.error("Error fetching socket information:", error);
+    return null;
+  }
+};
+
+
 
 // Controller to handle deleting a comment from a post
 exports.deleteComment = async (req, res) => {

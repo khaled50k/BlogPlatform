@@ -1,3 +1,4 @@
+// app.js
 const express = require("express");
 const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
@@ -14,59 +15,49 @@ dotenv.config();
 const usersRoute = require("./routes/User.js");
 const postsRoute = require("./routes/Post.js");
 const connectDB = require("./config/database.js");
-const sockets = {};
+const Socket = require("./models/Socket");
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS"
-  );
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  next();
-});
-app.use((req, res, next) => {
-  req.io = getIO();
   next();
 });
 
 app.use(cookieParser());
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // Enable CORS
-app.use(
-  cors({
-    origin: "*",
-  })
-);
+app.use(cors({ origin: "*" }));
 
-getIO().on("connection", (socket) => {
+// Set up Socket.IO connection and event handling
+const io = getIO();
+io.on("connection", async (socket) => {
   console.log("A new user has connected");
 
   const userId = socket.handshake.query.userId;
-  // console.log(socket.handshake);
-  sockets[userId] = socket;
+
+  // Find and store the socket information in the database
+  await Socket.findOneAndUpdate({ userId }, { socketId: socket.id }, { upsert: true });
 
   // Handle disconnect event
-  socket.on("disconnect", () => {
-    delete sockets[userId];
+  socket.on("disconnect", async () => {
+    await Socket.findOneAndDelete({ userId });
     console.log("A user has disconnected");
     // Add your logic here to handle user disconnection if needed
   });
 });
 
-// Make the sockets object available to your routes by attaching it to the request object
+// Make the io object available to your routes by attaching it to the request object
 app.use((req, res, next) => {
-  req.sockets = sockets;
+  req.io = io;
   next();
 });
+
 connectDB();
 app.use("/api/users", usersRoute);
 app.use("/api/post", postsRoute);
-
-// Socket.IO connection and event handling
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
