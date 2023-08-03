@@ -139,16 +139,23 @@ exports.likePost = async (req, res) => {
     }
 
     // Check if the user has already liked the post
-    const existingLike = await Like.findOne({ user: userId, post: postId });
-
+    const existingLike = await Like.findOne({ author: userId, post: postId });
     if (existingLike) {
-      // User has already liked the post, so we remove the like
-      await existingLike.remove();
-      // Update the `likes` field in the Post document to remove the like
+      // Check if the Like exists and belongs to the user
+      const like = await Like.findOneAndDelete({
+        _id: existingLike._id,
+        author: userId,
+      });
+      if (!like) {
+        return res.status(404).json({ message: "Like not found r" });
+      }
+
+      // Update the `Like` field in the Post document to remove the deleted Like
       await Post.findByIdAndUpdate(postId, {
         $pull: { likes: existingLike._id },
       });
-      res.status(200).json({ message: "Post like removed successfully" });
+
+      res.status(200).json({ message: "Like deleted successfully" });
     } else {
       // User has not liked the post, so we create a new like
       const like = new Like({
@@ -220,7 +227,6 @@ exports.addComment = async (req, res) => {
 
 // Controller to handle deleting a comment from a post
 exports.deleteComment = async (req, res) => {
-  v;
   try {
     const { postId, commentId } = req.params;
     const { userId } = req.user;
