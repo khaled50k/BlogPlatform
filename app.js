@@ -12,6 +12,7 @@ init(server); // Initialize Socket.IO
 
 dotenv.config();
 const usersRoute = require("./routes/User.js");
+const postsRoute = require("./routes/Post.js");
 const connectDB = require("./config/database.js");
 
 
@@ -40,7 +41,8 @@ app.use(
 );
 
 connectDB();
-app.use("/api", usersRoute);
+app.use("/api/users", usersRoute);
+app.use("/api/post", postsRoute);
 
 // Socket.IO connection and event handling
 

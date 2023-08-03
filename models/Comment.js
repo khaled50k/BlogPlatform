@@ -1,38 +1,30 @@
-// models/Comment.js
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const User = require('./User');
-const Post = require('./Post');
+const mongoose = require('mongoose');
 
-const Comment = sequelize.define('Comment', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+// Define the schema for the Comment model
+const commentSchema = new mongoose.Schema({
+  // Define the properties of the comment here
+  // For example:
   content: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
+  },
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  post: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    required: true,
   },
   createdAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
+    type: Date,
+    default: Date.now,
   },
 });
 
-Comment.belongsTo(User, { as: 'author', foreignKey: 'authorId' });
-User.hasMany(Comment, { foreignKey: 'authorId' });
-
-Comment.belongsTo(Post, { foreignKey: 'postId' });
-Post.hasMany(Comment, { foreignKey: 'postId' });
-
-Comment.belongsTo(Comment, { as: 'parentComment', foreignKey: 'parentCommentId' });
-Comment.hasMany(Comment, { as: 'replies', foreignKey: 'parentCommentId' });
+// Register the Comment model with Mongoose
+const Comment = mongoose.model('Comment', commentSchema);
 
 module.exports = Comment;

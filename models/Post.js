@@ -1,50 +1,51 @@
-// models/Post.js
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
-const User = require("./User");
-const Comment = require("./Comment");
+const mongoose = require("mongoose");
+const Like = require("./Like");
 
-const Post = sequelize.define("Post", {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+const postSchema = new mongoose.Schema({
   title: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   content: {
-    type: DataTypes.TEXT("long"),
-    allowNull: false,
+    type: String,
+    required: true,
   },
   createdAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
+    type: Date,
+    default: Date.now,
   },
   updatedAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
+    type: Date,
+    default: Date.now,
   },
+  postPicture: {
+    type: String,
+    validate: {
+      validator: function (url) {
+        // Simple URL validation using a regex (you can use a library for more complex validation)
+        return /^(ftp|http|https):\/\/[^ "]+$/.test(url);
+      },
+      message: (props) => `${props.value} is not a valid URL!`,
+    },
+  },
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Reference to the User model
+  },
+  likes: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Like",
+    },
+  ],
+  comments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+    },
+  ],
 });
 
-Post.belongsTo(User, { as: "author", foreignKey: "authorId" });
-User.hasMany(Post, { foreignKey: "authorId" });
-
-Post.belongsToMany(User, {
-  through: "PostLike",
-  as: "likedBy",
-  foreignKey: "postId",
-});
-User.belongsToMany(Post, {
-  through: "PostLike",
-  as: "likedPosts",
-  foreignKey: "userId",
-});
-
-Post.hasMany(Comment, { foreignKey: "postId" });
-Comment.belongsTo(Post, { foreignKey: "postId" });
+const Post = mongoose.model("Post", postSchema);
 
 module.exports = Post;

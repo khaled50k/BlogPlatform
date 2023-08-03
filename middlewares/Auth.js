@@ -40,7 +40,7 @@ const verifyToken = async (req, res, next) => {
 const verifyTokenAndAuthorization = (req, res, next) => {
   verifyToken(req, res, () => {
     const { userId, role } = req.user;
-    if (userId === req.query.userId || role === "admin") {
+    if (userId === req.query.userId || role ) {
       next();
     } else {
       res.status(403).json({ error: "You are not allowed to do that" });
@@ -51,7 +51,7 @@ const verifyTokenAndAuthorization = (req, res, next) => {
 const verifyTokenAndAdmin = (req, res, next) => {
   verifyToken(req, res, () => {
     const { role } = req.user;
-    if (role === "admin") {
+    if (role) {
       next();
     } else {
       res.status(403).json({ error: "You are not allowed to do that" });
