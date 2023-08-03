@@ -45,7 +45,8 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     await Socket.findOneAndDelete({ userId });
     console.log("A user has disconnected");
-    // Add your logic here to handle user disconnection if needed
+    await Socket.findOneAndDelete({ userId });
+
   });
 });
 
