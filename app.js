@@ -1,13 +1,22 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
-const cors=require('cors')
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const { init,getIO } = require("./sockets/socket");
+const http = require("http");
 
 const app = express();
+const server = http.createServer(app);
+init(server); // Initialize Socket.IO
+
 dotenv.config();
 const usersRoute = require("./routes/User.js");
 const connectDB = require("./config/database.js");
+
+
+
+
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader(
@@ -17,18 +26,36 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   next();
 });
+
 app.use(cookieParser());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.json({ limit: "20kb" }));
+
+// Enable CORS
 app.use(
   cors({
     origin: "*",
   })
 );
+
 connectDB();
 app.use("/api", usersRoute);
-app.listen(3000, () => {
-  console.log(`Server running on Port: ${3000}`);
+
+// Socket.IO connection and event handling
+
+getIO().on("connection", (socket) => {
+  console.log("A new user has connected");
+ 
+
+
+  // Handle disconnect event
+  socket.on("disconnect", () => {
+    console.log("A user has disconnected");
+    // Add your logic here to handle user disconnection if needed
+  });
+});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on Port: ${PORT}`);
 });

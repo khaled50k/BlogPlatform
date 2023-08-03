@@ -3,7 +3,9 @@ const CryptoJS = require("crypto-js");
 const dotenv = require("dotenv");
 const { Session } = require("../models/Session");
 const jwt = require("jsonwebtoken");
+const { getIO } = require("../sockets/socket");
 dotenv.config();
+const io = getIO();
 
 // Function to create a new user
 exports.createUser = async (req, res) => {
@@ -94,26 +96,46 @@ exports.getUsers = async (req, res) => {
     const { id } = req.params;
     if (id) {
       // If an ID is provided, find a specific user by ID
-      const user = await User.findById(id);
+      const user = await User.findById(
+        id, // Use the correct parameter name here
+        "_id name username profilePicture followers following isVerified"
+      )
+        .populate("followers", "_id name username profilePicture isVerified")
+        .populate("following", "_id name username profilePicture isVerified")
+        .exec();
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       res.status(200).json({ user });
     } else {
       // If no ID is provided, fetch all users
-      const users = await User.find({});
+      const users = await User.find(
+        {},
+        "_id name username profilePicture followers following isVerified"
+      )
+        .populate("followers", "_id name username profilePicture isVerified")
+        .populate("following", "_id name username profilePicture isVerified")
+        .exec();
+
       res.status(200).json({ users });
     }
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve users" });
   }
 };
+
 // Function to get users data by session cookie
 exports.getUserDataByCookie = async (req, res) => {
   try {
     const { userId } = req.user;
 
-    const user = await User.findById(userId);
+    const user = await User.findById(
+      userId,
+      "_id name username profilePicture followers following isVerified"
+    )
+      .populate("followers", "_id name username profilePicture isVerified ")
+      .populate("following", "_id name username profilePicture isVerified")
+      .exec();
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -187,7 +209,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 // Function to add a follower to a user
-exports.addFollower = async (req, res) => {
+exports.follow = async (req, res) => {
   try {
     const { userId } = req.user;
     const followerId = req.params.id;
@@ -206,6 +228,33 @@ exports.addFollower = async (req, res) => {
     if (!follower.followers.includes(userId)) {
       follower.followers.push(userId);
       await follower.save();
+
+      // Update the "following" array for the user
+      user.following.push(followerId);
+      await user.save();
+      // After you save the changes to the user's followers and the follower's followings, emit socket.io events
+
+      // Populate the updated user and follower objects with the necessary fields
+      const updatedUser = await User.findById(
+        userId,
+        "_id name username profilePicture isVerified"
+      )
+        .populate("followers", "_id name username profilePicture isVerified")
+        .populate("following", "_id name username profilePicture isVerified")
+        .exec();
+
+      const updatedFollower = await User.findById(
+        followerId,
+        "_id name username profilePicture isVerified"
+      )
+        .populate("followers", "_id name username profilePicture isVerified")
+        .populate("following", "_id name username profilePicture isVerified")
+        .exec();
+      // Emit socket.io events with the updated user and follower data
+      io.emit(`followerAdded-${followerId}`, { follower: updatedFollower });
+
+      // Emit socket.io events with the updated user and follower data
+      io.to(userId).emit(`followed`, { user: updatedUser });
       res.status(200).json({ message: "Follower added successfully" });
     } else {
       res.status(400).json({ message: "Follower already exists" });
@@ -215,37 +264,9 @@ exports.addFollower = async (req, res) => {
     res.status(500).json({ message: "Error adding follower" });
   }
 };
-// Function to add a following to a user
-exports.addFollowing = async (req, res) => {
-  try {
-    const { followingId } = req.body;
-    const userId = req.params.id;
-    // Check if both the user and the follower exist
-    const user = await User.findById(userId);
-    const following = await User.findById(followingId);
-    if (!user || !following) {
-      return res.status(404).json({ message: "User or Following not found" });
-    }
-    // Check if the user and following user are not the same
-    if (userId === followingId) {
-      return res.status(400).json({ message: "Cannot follow yourself" });
-    }
-    // Check if the following user is not already in the user's following array
-    if (!user.following.includes(followingId)) {
-      user.following.push(followingId);
-      await user.save();
-      res.status(200).json({ message: "Following user added successfully" });
-    } else {
-      res.status(400).json({ message: "Following user already exists" });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error adding following" });
-  }
-};
 
 // Function to delete a follower from a user
-exports.deleteFollower = async (req, res) => {
+exports.unfollow = async (req, res) => {
   try {
     const { userId } = req.user;
     const followerId = req.params.id;
@@ -253,48 +274,52 @@ exports.deleteFollower = async (req, res) => {
     // Check if both the user and the follower exist
     const user = await User.findById(userId);
     const follower = await User.findById(followerId);
-    if (!user || !follower) {
-      return res.status(404).json({ message: "User or Follower not found" });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Remove the follower from the user's followers array
-    const followerIndex = follower.followers.indexOf(userId);
-    if (followerIndex !== -1) {
-      follower.followers.splice(followerIndex, 1);
-      await follower.save();
-      res.status(200).json({ message: "Follower removed successfully" });
+    if (!follower) {
+      return res.status(404).json({ message: "Follower not found" });
+    }
+    // Check if the follower is not already in the user's followers array
+    if (!follower.followers.includes(userId)) {
+      return res
+        .status(400)
+        .json({ message: "You are not following this user" });
     }
 
-    res.status(200).json({ message: "Follower already removed" });
+    // Update the user document to remove the follower
+    await User.updateOne({ _id: followerId }, { $pull: { followers: userId } });
+
+    // Update the follower document to remove the user from their following
+    await User.updateOne({ _id: userId }, { $pull: { following: followerId } });
+
+    // Populate the updated user and follower objects with the necessary fields
+    const updatedUser = await User.findById(
+      userId,
+      "_id name username profilePicture isVerified"
+    )
+      .populate("followers", "_id name username profilePicture isVerified")
+      .populate("following", "_id name username profilePicture isVerified")
+      .exec();
+
+    const updatedFollower = await User.findById(
+      followerId,
+      "_id name username profilePicture isVerified"
+    )
+      .populate("followers", "_id name username profilePicture isVerified")
+      .populate("following", "_id name username profilePicture isVerified")
+      .exec();
+    // Emit socket.io events with the updated user and follower data
+    io.to(followerId).emit("followerRemoved", { follower: updatedFollower });
+
+    // Emit socket.io events with the updated user and follower data
+    io.to(userId).emit("unfollowed", { user: updatedUser });
+    res.status(200).json({ message: "Unfollowed successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error removing follower" });
-  }
-};
-// Function to delete a followings from a user
-exports.deleteFollowing = async (req, res) => {
-  try {
-    const { followingId } = req.body;
-    const userId = req.params.id;
-
-    // Check if both the user and the follower exist
-    const user = await User.findById(userId);
-    const following = await User.findById(followingId);
-    if (!user || !following) {
-      return res.status(404).json({ message: "User or Following not found" });
-    }
-
-    // Remove the follower from the user's followers array
-    const followingIndex = user.following.indexOf(followingId);
-    if (followingIndex !== -1) {
-      user.following.splice(followingIndex, 1);
-      await user.save();
-    }
-
-    res.status(200).json({ message: "Following removed successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error removing following" });
+    res.status(500).json({ message: "Error unfollowing" });
   }
 };
 
@@ -310,7 +335,9 @@ exports.getAllFollowers = async (req, res) => {
     }
 
     // Get all followers for the user
-    const followers = await User.find({ _id: { $in: user.followers } });
+    const followers = await User.find({ _id: { $in: user.followers } }).select(
+      "name username _id"
+    );
 
     res.status(200).json(followers);
   } catch (error) {
@@ -331,7 +358,9 @@ exports.getAllFollowings = async (req, res) => {
     }
 
     // Get all followings for the user
-    const followings = await User.find({ _id: { $in: user.following } });
+    const followings = await User.find({ _id: { $in: user.following } }).select(
+      "name username _id"
+    );
 
     res.status(200).json(followings);
   } catch (error) {

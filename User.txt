@@ -1,0 +1,4 @@
+user :
+      
+	1-can follow => get userId,followingId
+	2- unfollow => get userId,followingId remove follow from followingId and remove userId from followers of userId,followingId  
