@@ -20,38 +20,52 @@ exports.createPost = async (req, res) => {
 
     const savedPost = await newPost.save();
 
+    // Create a notification message for new post
+    const notification = {
+      type: "newPost",
+      post: savedPost,
+    };
+
+    // Emit the notification event to all connected clients
+    req.io.emit("notification", notification);
+
     res.status(201).json({ message: "Post created successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to create the post" });
   }
 };
 
 // Controller to handle deleting a post and its associated likes and comments
 exports.deletePost = async (req, res) => {
-    try {
-      const { postId } = req.params;
-      const { userId } = req.user;
-  
-      // Check if the post exists and belongs to the user
-      const post = await Post.findByIdAndRemove({ _id: postId, author: userId });
-      if (!post) {
-        return res.status(404).json({ message: "Post not found or not owned by the user" });
-      }
-  
-      // Delete the post
+  try {
+    const { postId } = req.params;
+    const { userId } = req.user;
 
-      // Delete all likes associated with the post
-      await Like.deleteMany({ post: postId });
-  
-      // Delete all comments associated with the post
-      await Comment.deleteMany({ post: postId });
-  
-      res.status(200).json({ message: "Post and associated likes and comments deleted successfully" });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Failed to delete the post" });
+    // Check if the post exists and belongs to the user
+    const post = await Post.findByIdAndRemove({ _id: postId, author: userId });
+    if (!post) {
+      return res
+        .status(404)
+        .json({ message: "Post not found or not owned by the user" });
     }
-  };
+
+    // Delete the post
+
+    // Delete all likes associated with the post
+    await Like.deleteMany({ post: postId });
+
+    // Delete all comments associated with the post
+    await Comment.deleteMany({ post: postId });
+
+    res.status(200).json({
+      message: "Post and associated likes and comments deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to delete the post" });
+  }
+};
 // Controller function to get  posts
 
 exports.getPosts = async (req, res) => {
@@ -61,51 +75,49 @@ exports.getPosts = async (req, res) => {
     if (postId) {
       // If a post ID is provided, find the specific post by ID
       const post = await Post.findById(postId)
-        .populate('author', '_id name username profilePicture isVerified')
+        .populate("author", "_id name username profilePicture isVerified")
         .populate({
-            path: 'likes',
-            populate: {
-              path: 'author',
-              select: '_id name username profilePicture isVerified',
-            },
-          })
-        .populate({
-          path: 'comments',
+          path: "likes",
           populate: {
-            path: 'author',
-            select: '_id name username profilePicture isVerified',
+            path: "author",
+            select: "_id name username profilePicture isVerified",
+          },
+        })
+        .populate({
+          path: "comments",
+          populate: {
+            path: "author",
+            select: "_id name username profilePicture isVerified",
           },
         })
         .exec();
 
       if (!post) {
-        return res.status(404).json({ message: 'Post not found' });
+        return res.status(404).json({ message: "Post not found" });
       }
 
       res.status(200).json({ post });
-    }
+    } else {
+      // If no user ID or post ID is provided, fetch all posts
+      const posts = await Post.find({})
+        .populate("author", "_id name username profilePicture isVerified")
+        .populate({
+          path: "likes",
+          populate: {
+            path: "author",
+            select: "_id name username profilePicture isVerified",
+          },
+        })
+        .populate({
+          path: "comments",
+          populate: {
+            path: "author",
+            select: "_id name username profilePicture isVerified",
+          },
+        })
+        .exec();
 
-     else {
-    // If no user ID or post ID is provided, fetch all posts
-    const posts = await Post.find({}).populate('author', '_id name username profilePicture isVerified')
-    .populate({
-        path: 'likes',
-        populate: {
-          path: 'author',
-          select: '_id name username profilePicture isVerified',
-        },
-      })
-    .populate({
-      path: 'comments',
-      populate: {
-        path: 'author',
-        select: '_id name username profilePicture isVerified',
-      },
-    })
-    .exec();
-
-
-    res.status(200).json({ posts });
+      res.status(200).json({ posts });
     }
   } catch (error) {
     console.error(error);
@@ -149,6 +161,14 @@ exports.likePost = async (req, res) => {
 
       // Update the `likes` field in the Post document to add the new like
       await Post.findByIdAndUpdate(postId, { $push: { likes: like._id } });
+      const notification = {
+        type: "newLike",
+        like,
+      };
+      if (req.sockets[post.author]) {
+        req.sockets[post.author].emit("notification", notification);
+      }
+
       res.status(200).json({ message: "Post liked successfully" });
     }
   } catch (error) {
@@ -156,7 +176,6 @@ exports.likePost = async (req, res) => {
     res.status(500).json({ message: "Failed to like/unlike the post" });
   }
 };
-
 
 // Controller to handle adding a comment to a post
 exports.addComment = async (req, res) => {
@@ -183,6 +202,14 @@ exports.addComment = async (req, res) => {
 
     // Update the `comments` field in the Post document to add the new comment
     await Post.findByIdAndUpdate(postId, { $push: { comments: comment._id } });
+    // Create a notification message for new comment
+    const notification = {
+      type: "newComment",
+      comment,
+    };
+    if (req.sockets[post.author]) {
+      req.sockets[post.author].emit("notification", notification);
+    }
 
     res.status(200).json({ message: "Comment added successfully" });
   } catch (error) {
@@ -193,28 +220,34 @@ exports.addComment = async (req, res) => {
 
 // Controller to handle deleting a comment from a post
 exports.deleteComment = async (req, res) => {
-    try {
-      const { postId, commentId } = req.params;
-      const { userId } = req.user;
-  
-      // Check if the post exists
-      const post = await Post.findById(postId);
-      if (!post) {
-        return res.status(404).json({ message: "Post not found" });
-      }
-  
-      // Check if the comment exists and belongs to the user
-      const comment = await Comment.findOneAndDelete({ _id: commentId, author: userId });
-      if (!comment) {
-        return res.status(404).json({ message: "Comment not found or not owned by the user" });
-      }
-  
-      // Update the `comments` field in the Post document to remove the deleted comment
-      await Post.findByIdAndUpdate(postId, { $pull: { comments: commentId } });
-  
-      res.status(200).json({ message: "Comment deleted successfully" });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Failed to delete the comment" });
+  v;
+  try {
+    const { postId, commentId } = req.params;
+    const { userId } = req.user;
+
+    // Check if the post exists
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
     }
-  };
+
+    // Check if the comment exists and belongs to the user
+    const comment = await Comment.findOneAndDelete({
+      _id: commentId,
+      author: userId,
+    });
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ message: "Comment not found or not owned by the user" });
+    }
+
+    // Update the `comments` field in the Post document to remove the deleted comment
+    await Post.findByIdAndUpdate(postId, { $pull: { comments: commentId } });
+
+    res.status(200).json({ message: "Comment deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to delete the comment" });
+  }
+};

@@ -10,7 +10,7 @@ const {
 // Route to create post
 router.post("/", verifyToken, userController.createPost);
 router.delete("/:postId", verifyToken, userController.deletePost);
-router.get("/:postId?", verifyTokenAndAdmin, userController.getPosts);
+router.get("/:postId?", verifyToken, userController.getPosts);
 router.post("/:postId/like", verifyToken, userController.likePost);
 router.post("/:postId/comment", verifyToken, userController.addComment);
 router.delete("/:postId/comment/:commentId", verifyToken, userController.deleteComment);
