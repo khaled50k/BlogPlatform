@@ -4,7 +4,11 @@ let io;
 
 function init(server) {
   console.log("trying to connect socket");
-  io = socketio(server);
+  io = socketio(server,{
+  cors: {
+    origin: '*',
+  }
+});
  
 }
 

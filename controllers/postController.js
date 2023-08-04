@@ -219,7 +219,7 @@ exports.addComment = async (req, res) => {
       comment,
     };
     const postAuthorSocketId = await getSocketIdByUserId(post.author);
-    console.log(postAuthorSocketId);
+  
     if (postAuthorSocketId) {
       req.io.to(postAuthorSocketId).emit("notification", notification);
     }
