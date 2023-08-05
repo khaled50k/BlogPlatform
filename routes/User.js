@@ -17,9 +17,9 @@ router.post("/register", userController.createUser);
 // Route to login
 router.post("/login", userController.loginUser);
 // Route to logout
-router.post("/logout",verifyToken, userController.logoutUser);
+router.post("/logout", verifyToken, userController.logoutUser);
 // get users
-router.get("/data", verifyToken,userController.getUserDataByCookie);
+router.get("/data", verifyToken, userController.getUserDataByCookie);
 router.get("/:id?", userController.getUsers);
 // get user data by cookie
 
