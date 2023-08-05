@@ -1,3 +1,4 @@
+//this is user route
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
@@ -5,6 +6,11 @@ const {
   verifyTokenAndAuthorization,
   verifyToken,
 } = require("../middlewares/Auth");
+// Request password reset
+router.post("/request-reset", userController.requestPasswordReset);
+
+// Reset password
+router.post("/reset-password", userController.resetPassword);
 
 // Route to register
 router.post("/register", userController.createUser);

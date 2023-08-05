@@ -2,9 +2,10 @@ const mongoose = require("mongoose");
 const CryptoJS = require("crypto-js");
 const dotenv = require("dotenv");
 dotenv.config();
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
       required: true,
       trim: true, // Trim whitespace from the beginning and end of the string
       minlength: [2, "Name must be at least 2 characters long"],
@@ -17,73 +18,77 @@ const userSchema = new mongoose.Schema({
         },
         message: "Name can only contain letters and spaces",
       },
-  },
-  username: {
-    type: String,
-    required: true,
-    unique: [true, "Username is taken"],
-    trim: true, // Trim whitespace from the beginning and end of the string
-    minlength: [3, "Username must be at least 3 characters long"],
-    maxlength: [30, "Username cannot exceed 30 characters"],
-    // Custom validation for the username format
-    validate: {
-      validator: function (username) {
-        return /^[a-zA-Z0-9_]+$/.test(username);
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: [true, "Username is taken"],
+      trim: true, // Trim whitespace from the beginning and end of the string
+      minlength: [3, "Username must be at least 3 characters long"],
+      maxlength: [30, "Username cannot exceed 30 characters"],
+      // Custom validation for the username format
+      validate: {
+        validator: function (username) {
+          return /^[a-zA-Z0-9_]+$/.test(username);
+        },
+        message: "Username can only contain letters, numbers, and underscores",
       },
-      message: "Username can only contain letters, numbers, and underscores",
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      validate: {
+        validator: function (email) {
+          // Simple email validation using a regex (you can use a library for more complex validation)
+          return /\S+@\S+\.\S+/.test(email);
+        },
+        message: (props) => `${props.value} is not a valid email address!`,
+      },
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    profilePicture: {
+      type: String,
+      validate: {
+        validator: function (url) {
+          // Simple URL validation using a regex (you can use a library for more complex validation)
+          return /^(ftp|http|https):\/\/[^ "]+$/.test(url);
+        },
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    bio: {
+      type: String,
+    },
+    followers: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
+    following: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+    },
+    resetToken: {
+      type: String,
+    },
+    resetTokenExpiration: {
+      type: Date,
     },
   },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    validate: {
-      validator: function (email) {
-        // Simple email validation using a regex (you can use a library for more complex validation)
-        return /\S+@\S+\.\S+/.test(email);
-      },
-      message: (props) => `${props.value} is not a valid email address!`,
-    },
-  },
-  password: {
-    type: String,
-    required: true,
-  },
-  profilePicture: {
-    type: String,
-    validate: {
-      validator: function (url) {
-        // Simple URL validation using a regex (you can use a library for more complex validation)
-        return /^(ftp|http|https):\/\/[^ "]+$/.test(url);
-      },
-      message: (props) => `${props.value} is not a valid URL!`,
-    },
-  },
-  bio: {
-    type: String,
-  },
-  followers: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: 'User',
-    default: [],
-  },
-  following: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: 'User',
-    default: [],
-  },
-  isVerified: {
-    type: Boolean,
-    default: false,
-  },
-  verificationToken: {
-    type: String,
-  },
-  resetToken: {
-    type: String,
-  },
-}, { timestamps: true });
-
+  { timestamps: true }
+);
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 console.log(ENCRYPTION_KEY);
@@ -96,7 +101,10 @@ userSchema.pre("save", function (next) {
     }
 
     // Encrypt the password using AES encryption
-    const encryptedPassword = CryptoJS.AES.encrypt(this.password, ENCRYPTION_KEY).toString();
+    const encryptedPassword = CryptoJS.AES.encrypt(
+      this.password,
+      ENCRYPTION_KEY
+    ).toString();
 
     // Replace the plain password with the encrypted password
     this.password = encryptedPassword;
@@ -110,7 +118,10 @@ userSchema.pre("save", function (next) {
 userSchema.methods.decryptPassword = function () {
   try {
     // Decrypt the password using AES decryption
-    const decryptedPassword = CryptoJS.AES.decrypt(this.password, ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
+    const decryptedPassword = CryptoJS.AES.decrypt(
+      this.password,
+      ENCRYPTION_KEY
+    ).toString(CryptoJS.enc.Utf8);
     return decryptedPassword;
   } catch (error) {
     return null;

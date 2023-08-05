@@ -1,11 +1,80 @@
+//this is userController
 const User = require("../models/User");
 const CryptoJS = require("crypto-js");
 const dotenv = require("dotenv");
 const { Session } = require("../models/Session");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const { generateResetToken, sendResetEmail } = require("../helpers/index"); // Make sure to adjust the path
+
 const { getIO } = require("../sockets/socket");
 dotenv.config();
 const io = getIO();
+
+//================
+
+// Request password reset
+
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate reset token
+    const resetToken = generateResetToken();
+
+    // Store reset token and expiration timestamp in user document
+    user.resetToken = resetToken;
+    user.resetTokenExpiration = Date.now() + 3600000; // Token valid for 1 hour
+    await user.save();
+
+    // Send reset email
+    await sendResetEmail(email, resetToken);
+
+    res.status(200).json({ message: "Password reset email sent" });
+  } catch (error) {
+    res.status(500).json({ message: "An error occurred" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    // Find user by reset token and check if it's valid and not expired
+    const user = await User.findOne({
+      resetToken,
+      resetTokenExpiration: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired reset token" });
+    }
+    // Additional validation for new password
+    if (!newPassword || newPassword.trim().length < 6) {
+      return res
+        .status(400)
+        .json({ message: "New password must be at least 6 characters" });
+    }
+
+    // Update user's password and clear reset token
+    user.password = newPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiration = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    res.status(500).json({ message: "An error occurred" });
+  }
+};
 
 // Function to create a new user
 exports.createUser = async (req, res) => {

@@ -53,7 +53,8 @@ io.use((socket, next) => {
       return next(new Error('Unauthorized'));
     }
     try {
-      console.log(user);
+      console.log(SESSION);
+      
   
 
       // Check if the session exists and is not revoked
