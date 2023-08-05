@@ -11,11 +11,12 @@ const app = express();
 const server = http.createServer(app);
 init(server); // Initialize Socket.IO
 dotenv.config();
-const usersRoute = require("./routes/User.js");
 const postsRoute = require("./routes/Post.js");
+const usersRoute = require("./routes/User.js");
+const uploadRoute = require("./routes/Upload.js");
 const connectDB = require("./config/database.js");
 const Socket = require("./models/Socket");
-
+const fileupload = require("express-fileupload");
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader(
@@ -29,7 +30,7 @@ app.use((req, res, next) => {
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
+app.use(fileupload({ useTempFiles: true }));
 // Enable CORS
 app.use(
   cors({
@@ -109,6 +110,7 @@ app.use((req, res, next) => {
 connectDB();
 app.use("/api/users", usersRoute);
 app.use("/api/post", postsRoute);
+app.use("/api/upload", uploadRoute);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
