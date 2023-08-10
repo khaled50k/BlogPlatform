@@ -149,8 +149,8 @@ exports.likePost = async (req, res) => {
     const existingLike = await Like.findOne({ author: userId, post: postId });
 
     if (existingLike) {
-      // User has already liked the post, so we remove the like
-      await existingLike.remove();
+      // User has already liked the post, so we delete the like
+      await existingLike.deleteOne();  // <-- Change made here
       await Post.findByIdAndUpdate(postId, {
         $pull: { likes: existingLike._id },
       });
@@ -162,7 +162,6 @@ exports.likePost = async (req, res) => {
         post: postId,
       });
       await newLike.save();
-      console.log('----------------------');
       await Post.findByIdAndUpdate(postId, {
         $push: { likes: newLike._id },
       });
