@@ -7,7 +7,6 @@ const Socket = require("../models/Socket");
 dotenv.config();
 const io = getIO();
 
-
 // Controller function to create a new post
 exports.createPost = async (req, res) => {
   try {
@@ -78,19 +77,24 @@ exports.getPosts = async (req, res) => {
     if (postId) {
       // If a post ID is provided, find the specific post by ID
       const post = await Post.findById(postId)
-        .populate("author", "_id name username profilePicture isVerified")
+        .populate(
+          "author",
+          "_id name username profilePicture isVerified profilePicture"
+        )
         .populate({
           path: "likes",
           populate: {
             path: "author",
-            select: "_id name username profilePicture isVerified",
+            select:
+              "_id name username profilePicture isVerified profilePicture",
           },
         })
         .populate({
           path: "comments",
           populate: {
             path: "author",
-            select: "_id name username profilePicture isVerified",
+            select:
+              "_id name username profilePicture isVerified profilePicture",
           },
         })
         .exec();
@@ -99,7 +103,7 @@ exports.getPosts = async (req, res) => {
         return res.status(404).json({ message: "Post not found" });
       }
 
-      res.status(200).json({ post });
+      res.status(200).json(post);
     } else {
       // If no user ID or post ID is provided, fetch all posts
       const posts = await Post.find({})
@@ -120,7 +124,7 @@ exports.getPosts = async (req, res) => {
         })
         .exec();
 
-      res.status(200).json({ posts });
+      res.status(200).json(posts);
     }
   } catch (error) {
     console.error(error);
@@ -143,50 +147,34 @@ exports.likePost = async (req, res) => {
 
     // Check if the user has already liked the post
     const existingLike = await Like.findOne({ author: userId, post: postId });
-    if (existingLike) {
-      // Check if the Like exists and belongs to the user
-      const like = await Like.findOneAndDelete({
-        _id: existingLike._id,
-        author: userId,
-      });
-      if (!like) {
-        return res.status(404).json({ message: "Like not found r" });
-      }
 
-      // Update the `Like` field in the Post document to remove the deleted Like
+    if (existingLike) {
+      // User has already liked the post, so we remove the like
+      await existingLike.remove();
       await Post.findByIdAndUpdate(postId, {
         $pull: { likes: existingLike._id },
       });
-
-      res.status(200).json({ message: "Like deleted successfully" });
+      res.status(200).json({ message: "Like removed successfully" });
     } else {
-      // User has not liked the post, so we create a new like
-      const like = new Like({
+      // User has not liked the post, so we add a new like
+      const newLike = new Like({
         author: userId,
         post: postId,
       });
-
-      // Save the like document
-      await like.save();
-
-      // Update the `likes` field in the Post document to add the new like
-      await Post.findByIdAndUpdate(postId, { $push: { likes: like._id } });
-      const notification = {
-        type: "newLike",
-        like,
-      };
-      const postAuthorSocketId = await getSocketIdByUserId(post.author);
-      console.log(postAuthorSocketId);
-      if (postAuthorSocketId) {
-        req.io.to(postAuthorSocketId).emit("notification", notification);
-      }
+      await newLike.save();
+      console.log('----------------------');
+      await Post.findByIdAndUpdate(postId, {
+        $push: { likes: newLike._id },
+      });
       res.status(200).json({ message: "Post liked successfully" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Failed to like/unlike the post" });
+    res.status(500).json({ message: "An error occurred" });
   }
 };
+
+
 
 // Controller to handle adding a comment to a post
 exports.addComment = async (req, res) => {
@@ -219,7 +207,7 @@ exports.addComment = async (req, res) => {
       comment,
     };
     const postAuthorSocketId = await getSocketIdByUserId(post.author);
-  
+
     if (postAuthorSocketId) {
       req.io.to(postAuthorSocketId).emit("notification", notification);
     }
@@ -240,8 +228,6 @@ const getSocketIdByUserId = async (userId) => {
     return null;
   }
 };
-
-
 
 // Controller to handle deleting a comment from a post
 exports.deleteComment = async (req, res) => {

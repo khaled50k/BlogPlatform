@@ -24,10 +24,10 @@ router.get("/:id?", userController.getUsers);
 // get user data by cookie
 
 // Route to update user details
-router.put("/:id", userController.updateUser);
+router.put("/", verifyToken,userController.updateUser);
 
 // Route to delete a user
-router.delete("/:id", userController.deleteUser);
+router.delete("/:id",verifyToken, userController.deleteUser);
 // Route to add a follower to a user
 router.post("/:id/follow", verifyToken, userController.follow);
 

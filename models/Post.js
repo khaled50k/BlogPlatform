@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Like = require("./Like");
+const Comment = require("./Comment"); // Import the Comment model
 
 const postSchema = new mongoose.Schema({
   title: {
@@ -32,12 +33,14 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User", // Reference to the User model
   },
-  likes: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Like",
-    },
-  ],
+// likes field in Post schema
+likes: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Like",
+  },
+],
+
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,

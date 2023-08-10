@@ -186,7 +186,7 @@ exports.getUsers = async (req, res) => {
         .populate("following", "_id name username profilePicture isVerified")
         .exec();
 
-      res.status(200).json({ users });
+      res.status(200).json( users );
     }
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve users" });
@@ -202,13 +202,19 @@ exports.getUserDataByCookie = async (req, res) => {
       userId,
       "_id name username profilePicture followers following isVerified"
     )
-      .populate("followers", "_id name username profilePicture isVerified ")
-      .populate("following", "_id name username profilePicture isVerified")
+      .populate(
+        "followers",
+        "_id name username profilePicture isVerified profilePicture"
+      )
+      .populate(
+        "following",
+        "_id name username profilePicture isVerified profilePicture"
+      )
       .exec();
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json({ user });
+    res.status(200).json( user );
   } catch (error) {
     return res.status(500).json({ error: "Failed to retrieve user data" });
   }
@@ -218,8 +224,8 @@ exports.getUserDataByCookie = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { name, username, email, password, profilePicture, bio } = req.body;
-    const userId = req.params.id;
-
+    const { userId } = req.user;
+    console.log(userId);
     // Ensure that the user exists before updating
     const existingUser = await User.findById(userId);
     if (!existingUser) {
