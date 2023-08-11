@@ -1,7 +1,7 @@
 //this is user route
 const express = require("express");
 const router = express.Router();
-const uploadController = require("../controllers/upload.controller");
+const uploadController = require("../controllers/upload.controller.js");
 const {
   verifyTokenAndAuthorization,
   verifyToken,

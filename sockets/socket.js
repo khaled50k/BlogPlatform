@@ -6,7 +6,8 @@ function init(server) {
   console.log("trying to connect socket");
   io = socketio(server,{
   cors: {
-    origin: '*',
+    origin: 'http://localhost:5173',
+    credentials: true
   }
 });
  

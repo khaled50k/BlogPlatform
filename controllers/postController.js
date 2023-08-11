@@ -165,6 +165,17 @@ exports.likePost = async (req, res) => {
       await Post.findByIdAndUpdate(postId, {
         $push: { likes: newLike._id },
       });
+      const notification = {
+        type: "newLike",
+        post:post,
+      };
+      
+      const postAuthorSocketId = await getSocketIdByUserId(post.author._id);
+      
+      if (postAuthorSocketId) {
+        console.log(`try to send like to user ${postAuthorSocketId} `);
+        req.io.to(postAuthorSocketId).emit("notification", notification);
+      }
       res.status(200).json({ message: "Post liked successfully" });
     }
   } catch (error) {
@@ -219,8 +230,10 @@ exports.addComment = async (req, res) => {
 };
 
 const getSocketIdByUserId = async (userId) => {
+  console.log(userId);
   try {
     const socketInfo = await Socket.findOne({ userId });
+    console.log(socketInfo);
     return socketInfo ? socketInfo.socketId : null;
   } catch (error) {
     console.error("Error fetching socket information:", error);

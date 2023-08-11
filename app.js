@@ -1,6 +1,7 @@
 // app.js
 const express = require("express");
 const dotenv = require("dotenv");
+const uuid = require("uuid");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -24,6 +25,8 @@ app.use((req, res, next) => {
     "GET, POST, PUT, DELETE, OPTIONS"
   );
   res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+
   next();
 });
 
@@ -41,63 +44,68 @@ app.use(
 
 // Set up Socket.IO connection and event handling
 const io = getIO();
-io.use((socket, next) => {
-  const cookieHeader = socket.handshake.headers.cookie;
-  const SESSION = cookieHeader
-    .split("; ")
-    .find((row) => row.startsWith("SESSION="))
-    .split("=")[1];
-  const userIdFromQuery = socket.handshake.query.userId;
-  jwt.verify(SESSION, process.env.JWT_SECRET, async (err, user) => {
-    if (err) {
-      return next(new Error("Unauthorized"));
-    }
-    try {
-      console.log(SESSION);
+// io.use((socket, next) => {
+//   const cookieHeader = socket.handshake.headers.cookie;
+//   const SESSION = cookieHeader
+//     .split("; ")
+//     .find((row) => row.startsWith("SESSION="))
+//     .split("=")[1];
+//   const userIdFromQuery = socket.handshake.query.userId;
+//   jwt.verify(SESSION, process.env.JWT_SECRET, async (err, user) => {
+//     if (err) {
+//       console.log('------------');
+//       return next(new Error("Unauthorized"));
+//     }
+//     try {
 
-      // Check if the session exists and is not revoked
-      const session = await Session.findOne({ session: SESSION });
-      console.log(session);
-      if (!session || session.revoked) {
-        return next(new Error("Unauthorized"));
-      }
+//       // Check if the session exists and is not revoked
+//       const session = await Session.findOne({ session: SESSION });
+//       console.log('------------');
+//       console.log(user);
+//       console.log('------------');
 
-      const currentTime = new Date().getTime();
+//       if (!session || session.revoked) {
+//         return next(new Error("Unauthorized"));
+//       }
 
-      // Check if the current time is greater than or equal to the session expiration time
-      if (currentTime >= session.exp.getTime()) {
-        return next(new Error("Unauthorized"));
-      }
-      console.log(user);
-      if (user.userId !== userIdFromQuery) {
-        // If they don't match, reject the socket connection
-        return next(new Error("Unauthorized"));
-      }
+//       const currentTime = new Date().getTime();
 
-      next();
-    } catch (error) {
-      return next(new Error("Unauthorized"));
-    }
-  });
-});
+//       // Check if the current time is greater than or equal to the session expiration time
+//       if (currentTime >= session.exp.getTime()) {
+//         return next(new Error("Unauthorized"));
+//       }
+
+//       if (user.userId !== userIdFromQuery) {
+//         // If they don't match, reject the socket connection
+//         return next(new Error("Unauthorized"));
+//       }
+
+//       next();
+//     } catch (error) {
+//       return next(new Error("Unauthorized"));
+//     }
+//   });
+// });
 
 io.on("connection", async (socket) => {
   console.log("A new user has connected");
 
   const userId = socket.handshake.query.userId;
+  const socketId = uuid.v4();
 
   // Find and store the socket information in the database
   await Socket.findOneAndUpdate(
     { userId },
-    { socketId: socket.id },
+    { socketId: socketId },
     { upsert: true }
   );
-
+  socket.id = socketId;
+  console.log("socketId" + socketId);
   // Handle disconnect event
   socket.on("disconnect", async () => {
-    await Socket.findOneAndDelete({ userId });
+    // await Socket.findOneAndDelete({ userId });
     console.log("A user has disconnected");
-    await Socket.findOneAndDelete({ userId });
+    await Socket.findOneAndDelete({ userId, socketId });
   });
 });
 

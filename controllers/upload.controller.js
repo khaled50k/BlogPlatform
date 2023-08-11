@@ -4,6 +4,7 @@ const sharp = require('sharp'); // Import the sharp library
 const fs=require('fs')
 exports.uploadPhoto = async (req, res) => {
   try {
+    console.log(req);
     const photoFile = req.files.photo;
 
     if (!photoFile) {
@@ -19,7 +20,7 @@ exports.uploadPhoto = async (req, res) => {
     // Resize image using sharp library
     const resizedImagePath = `${photoFile.tempFilePath}-resized.jpg`; // Specify the output path for resized image
     await sharp(photoFile.tempFilePath)
-      .resize({ width: 500, height: 500 }) // Specify the desired width and height
+      .resize({ width: 413, height: 413 }) // Specify the desired width and height
       .toFile(resizedImagePath);
 
     // Upload resized image file to Cloudinary
