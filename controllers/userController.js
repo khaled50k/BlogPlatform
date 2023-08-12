@@ -1,5 +1,6 @@
 //this is userController
 const User = require("../models/User");
+const Post = require("../models/Post");
 const CryptoJS = require("crypto-js");
 const dotenv = require("dotenv");
 const { Session } = require("../models/Session");
@@ -166,16 +167,44 @@ exports.getUsers = async (req, res) => {
     if (id) {
       // If an ID is provided, find a specific user by ID
       const user = await User.findById(
-        id, // Use the correct parameter name here
+        id,
         "_id name username profilePicture followers following isVerified"
       )
         .populate("followers", "_id name username profilePicture isVerified")
         .populate("following", "_id name username profilePicture isVerified")
         .exec();
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.status(200).json({ user });
+
+      // Fetch user's posts and populate them
+      const userPosts = await Post.find({ author: id }).sort({ createdAt: -1 })
+        .populate(
+          "author",
+          "_id name username profilePicture isVerified profilePicture"
+        )
+        .populate({
+          path: "likes",
+          populate: {
+            path: "author",
+            select:
+              "_id name username profilePicture isVerified profilePicture",
+          },
+        })
+        .populate({
+          path: "comments",
+          populate: {
+            path: "author",
+            select:
+              "_id name username profilePicture isVerified profilePicture",
+          },
+        })
+        .exec();
+      const plainUser = user.toObject();
+      plainUser.posts = userPosts;
+
+      res.status(200).json(plainUser);
     } else {
       // If no ID is provided, fetch all users
       const users = await User.find(
@@ -186,7 +215,7 @@ exports.getUsers = async (req, res) => {
         .populate("following", "_id name username profilePicture isVerified")
         .exec();
 
-      res.status(200).json( users );
+      res.status(200).json(users);
     }
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve users" });
@@ -214,7 +243,7 @@ exports.getUserDataByCookie = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json( user );
+    res.status(200).json(user);
   } catch (error) {
     return res.status(500).json({ error: "Failed to retrieve user data" });
   }

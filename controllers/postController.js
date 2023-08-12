@@ -10,11 +10,10 @@ const io = getIO();
 // Controller function to create a new post
 exports.createPost = async (req, res) => {
   try {
-    const { title, content, postPicture } = req.body;
+    const { content, postPicture } = req.body;
     const author = req.user.userId; // Assuming you have middleware to get the authenticated user's ID
 
     const newPost = new Post({
-      title,
       content,
       postPicture,
       author,
@@ -107,6 +106,7 @@ exports.getPosts = async (req, res) => {
     } else {
       // If no user ID or post ID is provided, fetch all posts
       const posts = await Post.find({})
+        .sort({ createdAt: -1 })
         .populate("author", "_id name username profilePicture isVerified")
         .populate({
           path: "likes",
@@ -150,7 +150,7 @@ exports.likePost = async (req, res) => {
 
     if (existingLike) {
       // User has already liked the post, so we delete the like
-      await existingLike.deleteOne();  // <-- Change made here
+      await existingLike.deleteOne(); // <-- Change made here
       await Post.findByIdAndUpdate(postId, {
         $pull: { likes: existingLike._id },
       });
@@ -167,11 +167,11 @@ exports.likePost = async (req, res) => {
       });
       const notification = {
         type: "newLike",
-        post:post,
+        post: post,
       };
-      
+
       const postAuthorSocketId = await getSocketIdByUserId(post.author._id);
-      
+
       if (postAuthorSocketId) {
         console.log(`try to send like to user ${postAuthorSocketId} `);
         req.io.to(postAuthorSocketId).emit("notification", notification);
@@ -183,8 +183,6 @@ exports.likePost = async (req, res) => {
     res.status(500).json({ message: "An error occurred" });
   }
 };
-
-
 
 // Controller to handle adding a comment to a post
 exports.addComment = async (req, res) => {

@@ -3,10 +3,6 @@ const Like = require("./Like");
 const Comment = require("./Comment"); // Import the Comment model
 
 const postSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-  },
   content: {
     type: String,
     required: true,
