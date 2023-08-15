@@ -14,6 +14,7 @@ router.post("/reset-password", userController.resetPassword);
 
 // Route to register
 router.post("/register", userController.createUser);
+router.post("/follow-all",verifyToken, userController.makeAllUsersFollowAccount);
 // Route to login
 router.post("/login", userController.loginUser);
 // Route to logout

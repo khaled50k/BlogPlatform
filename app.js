@@ -18,6 +18,9 @@ const uploadRoute = require("./routes/Upload.js");
 const connectDB = require("./config/database.js");
 const Socket = require("./models/Socket");
 const fileupload = require("express-fileupload");
+const User = require("./models/User");
+const fs = require("fs");
+
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader(
@@ -35,12 +38,25 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(fileupload({ useTempFiles: true }));
 // Enable CORS
+connectDB();
 app.use(
   cors({
     origin: "http://localhost:5173", // Replace this with the correct origin URL
     credentials: true,
   })
 );
+
+const dataPath = "./generated_users.json"; // Adjust the path to the JSON file
+const generatedData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+async function insertGeneratedData() {
+  try {
+    await User.insertMany(generatedData);
+    console.log("Generated data inserted into MongoDB");
+  } catch (error) {
+    console.error("Error inserting data:", error);
+  }
+}
+
 
 // Set up Socket.IO connection and event handling
 const io = getIO();
@@ -115,7 +131,6 @@ app.use((req, res, next) => {
   next();
 });
 
-connectDB();
 app.use("/api/users", usersRoute);
 app.use("/api/post", postsRoute);
 app.use("/api/upload", uploadRoute);
@@ -124,3 +139,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on Port: ${PORT}`);
 });
+
+// insertGeneratedData();

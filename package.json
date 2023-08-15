@@ -23,6 +23,8 @@
     "express-fileupload": "^1.4.0",
     "express-rate-limit": "^6.8.1",
     "express-session": "^1.17.3",
+    "faker": "^6.6.6",
+    "fs": "^0.0.1-security",
     "http": "^0.0.1-security",
     "jsonwebtoken": "^9.0.1",
     "mime": "^3.0.0",
@@ -34,5 +36,8 @@
     "sharp": "^0.32.4",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^8.0.2"
   }
 }

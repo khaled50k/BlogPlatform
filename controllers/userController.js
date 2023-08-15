@@ -160,6 +160,45 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: "Failed to log in" });
   }
 };
+
+// Function to make all users follow account
+
+exports.makeAllUsersFollowAccount = async (req, res) => {
+  try {
+    const { userId } = req.user; // The ID of the account you want users to follow
+
+    // Find the account by its ID
+    const account = await User.findById(userId);
+    if (!account) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    // Find all users except the account itself
+    const users = await User.find({ _id: { $ne: userId } });
+
+    // Loop through users and add the account to their following list and
+    // add the user to the account's followers list
+    for (const user of users) {
+      if (!user.following.includes(userId)) {
+        user.following.push(userId);
+      }
+
+      if (!account.followers.includes(user._id)) {
+        account.followers.push(user._id);
+      }
+    }
+
+    await account.save();
+
+    res
+      .status(200)
+      .json({ message: "All eligible users are now following the account" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+};
+
 // Function to get users
 exports.getUsers = async (req, res) => {
   try {
@@ -179,7 +218,8 @@ exports.getUsers = async (req, res) => {
       }
 
       // Fetch user's posts and populate them
-      const userPosts = await Post.find({ author: id }).sort({ createdAt: -1 })
+      const userPosts = await Post.find({ author: id })
+        .sort({ createdAt: -1 })
         .populate(
           "author",
           "_id name username profilePicture isVerified profilePicture"
@@ -202,6 +242,7 @@ exports.getUsers = async (req, res) => {
         })
         .exec();
       const plainUser = user.toObject();
+      plainUser.followers = plainUser.followers.length;
       plainUser.posts = userPosts;
 
       res.status(200).json(plainUser);
@@ -215,7 +256,7 @@ exports.getUsers = async (req, res) => {
         .populate("following", "_id name username profilePicture isVerified")
         .exec();
 
-      res.status(200).json(users);
+      res.status(200).json(users.length);
     }
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve users" });
@@ -231,10 +272,11 @@ exports.getUserDataByCookie = async (req, res) => {
       userId,
       "_id name username profilePicture followers following isVerified"
     )
-      .populate(
-        "followers",
-        "_id name username profilePicture isVerified profilePicture"
-      )
+      .populate({
+        path: "followers",
+        select: "_id name username profilePicture isVerified",
+        options: { limit: 10 },
+      })
       .populate(
         "following",
         "_id name username profilePicture isVerified profilePicture"
@@ -243,6 +285,7 @@ exports.getUserDataByCookie = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    user.followers = user.followers.length;
     res.status(200).json(user);
   } catch (error) {
     return res.status(500).json({ error: "Failed to retrieve user data" });
